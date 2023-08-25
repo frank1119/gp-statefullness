@@ -1,41 +1,17 @@
-# C++ Gig Performer Extension GlobalVars 
+# C++ Gig Performer Extension StateFullness 
 Gig Performer is a live performance VST-host with lots of features. See [Gig Performer](https://gigperformer.com/) for details.  
 This extension uses the [Gig Performer SDK](https://github.com/gigperformer/gp-sdk) and is based on the gp-extension-cpp example.  
 
 ## Purpose
-Provides global variables accessible between the several script types, like gig-script, rackspace-scrips, scriptlets and song-scripts. GPscript lacks this.  
+This extension works in conjunction with StateFullness.vst3. Primary goal is to save userdefined string, double, integer and/or boolean variables in gig file. These variables are relative to the rackspace and when a rackspace is duplicated, the vst plugins are responsible for saving sthe state.
 You might call this extension 'headless', because it has no menus or panels. It only adds some scripting functions.
 **USE AT YOUR OWN RISK!**
 
-## Some history
-Some time ago I started exploring Gig Performer and stumbled upon its scripting feature. This feature is very useful, but lacks one thing: low weight communication between the several scripts. Of course there are way to accomplish collaboration between these scripts but sometimes they feel a bit heavy for the usage I have in mind. The easiest way IMHO could be variables accessible from all scripts. When I read about this extension API and its possibility to extend also the available script functions, I saw an opportunity to implement this myself.
-
-I must admit till now every 'Gig' I created can do without it, so I'm not entirely sure of the usefulness of this extension. Furthermore, it is possible that this extension conflicts with the philosophy of Gig Performer.
+## Disclaimer
+I'm in no way affilated to Gig Performer(r) or Deskew(r). Although you can contact me at their forum, Gig Performer ot Deskew are not able to provide any support for this extenstion or the accompanying vst3
 
 ## How to build...
-These instructions are a copy of build instructions for the gp-extension-cpp example. The build on macOS I cannot try, because I don't own a Mac.
-
-### ... on macOS
-
--   Make sure you have [CMake](https://cmake.org) installed.
-    You might have to add the path to the cmake executable by adding this line to your bash profile:
-
-    ```bash
-    export PATH=/Applications/CMake.app/Contents/bin:$PATH
-    ```
-
-    Alternatively, you can install CMake via [Homebrew](https://brew.sh):
-
-    ```bash
-    brew install cmake
-    ```
-
--   Build (and install) the project via CMake.
-    For your convenience we have provided a `build.sh` which contains all necessary commands:
-
-    ```bash
-    ./build.sh
-    ```
+These instructions are a copy of build instructions for the gp-extension-cpp example. The vst3 project won't build on macOS since I use in the vst3 some Windows dedicated calls. That renders this project rather useless on macOS.
 
 ### ... on Windows
 
@@ -50,7 +26,8 @@ These instructions are a copy of build instructions for the gp-extension-cpp exa
 
     **Make sure to run the script from the Visual Studio developer command prompt!**
 
-## How to use
+## How to use in the Global Rackspace
+Here are the main script calls for the global rackspace
 
 ### Declare a variable
 
@@ -60,7 +37,7 @@ These instructions are a copy of build instructions for the gp-extension-cpp exa
     var
         b : boolean
         
-        b = GlobalVars_CreateInt("NumberOfSongparts")
+        b = StateFullness_CreateInt("NumberOfSongparts")
         Print(b)
     ```
 
@@ -70,7 +47,7 @@ These instructions are a copy of build instructions for the gp-extension-cpp exa
     var
         b : boolean
         
-        b = GlobalVars_CreateString("Author")
+        b = StateFullness_CreateString("Author")
         Print(b)
     ```
     
@@ -80,22 +57,12 @@ These instructions are a copy of build instructions for the gp-extension-cpp exa
     var
         b : boolean
         
-        b = GlobalVars_CreateString("global_1")
+        b = StateFullness_CreateString("global_1")
         
-        b = GlobalVars_CreateInt("global_1") // Will return false: global_1 already exists
+        b = StateFullness_CreateInt("global_1") // Will return false: global_1 already exists
         Print(b)
     ```
-    
--   Integer array declaration
-
-    ```gpscript
-    var
-        b : boolean
-        
-        b = GlobalVars_CreateIntArray("PowersOfTwo", 10)
-        Print(b)
-    ```
-    
+   
 ### Assigning a value
 
 -   Assigning an integer
@@ -104,26 +71,10 @@ These instructions are a copy of build instructions for the gp-extension-cpp exa
     var
         b : boolean
         
-        b = GlobalVars_SetInt("NumberOfSongparts", 100)
+        b = StateFullness_SetInt("NumberOfSongparts", 100)
         Print(b)
     ```
     
--   Assigning an integer in an array
-
-    ```gpscript
-    var
-        b : boolean
-        
-        b = GlobalVars_SetIntInArray("PowersOfTwo", 0, 1)
-        Print(b)
-        b = GlobalVars_SetIntInArray("PowersOfTwo", 1, 2)
-        Print(b)
-        b = GlobalVars_SetIntInArray("PowersOfTwo", 2, 4)
-        Print(b)
-        b = GlobalVars_SetIntInArray("PowersOfTwo", 3, 8)
-        Print(b)
-    ```
-
 -   Assigning a string
     
     ```gpscript
@@ -133,23 +84,7 @@ These instructions are a copy of build instructions for the gp-extension-cpp exa
         
         author = "Frank"
         
-        b = GlobalVars_SetString("Author", author, Length(author))
-        Print(b)
-    ```
-
--   Assigning a string in an array
-    
-    ```gpscript
-    var
-        b : boolean
-        contributor : string
-        
-        contributor = "Frank"
-        b = GlobalVars_SetStringInArray("Contributors", 0, contributor, Length(contributor))
-        Print(b)
-        
-        contributor = "Tom"
-        b = GlobalVars_SetStringInArray("Contributors", 1, contributor, Length(contributor))
+        b = StateFullness_SetString("Author", author, Length(author))
         Print(b)
     ```
 
@@ -158,13 +93,13 @@ These instructions are a copy of build instructions for the gp-extension-cpp exa
 -   Getting an integer
 
     ```gpscript
-    Print (GlobalVars_GetInt("NumberOfSongparts"))
+    Print (StateFullness_GetInt("NumberOfSongparts"))
     ```
 
 -   Getting a string
 
     ```gpscript
-    Print (GlobalVars_GetString("Author"))
+    Print (StateFullness_GetString("Author"))
     ```
 
 -   Getting an integer from an array
@@ -174,20 +109,13 @@ These instructions are a copy of build instructions for the gp-extension-cpp exa
     Print (GlobalVars_GetIntFromArray("PowersOfTwo", 3))
     ```
 
--   Getting a string from an array
-
-    ```gpscript
-    Print (GlobalVars_GetStringFromArray("Contributors", 0))
-    Print (GlobalVars_GetStringFromArray("Contributors", 1))
-    ```
-
 ### Removing variables
 
 -   Removing specific variables
 
     ```gpscript
-    Print (GlobalVars_DestroyVariable("Contributors"))
-    Print (GlobalVars_DestroyVariable("NumberOfSongparts"))
+    Print (StateFullness_DestroyVariable("Contributors"))
+    Print (StateFullness_DestroyVariable("NumberOfSongparts"))
     ```
 
 -   Erase all
@@ -195,25 +123,6 @@ These instructions are a copy of build instructions for the gp-extension-cpp exa
     ```gpscript
     GlobalVars_RemoveAll()
     ```
-
-### Enabling auto Removing variables when loading a new Gig
-By default, variables created in one Gig will not be erased when a new Gig
-is loaded.
-
--   Enable:
-
-    ```gpscript
-    Print (GlobalVars_RemoveAllOnLoad(True))
-    ```
-
--   Disable:
-
-    ```gpscript
-    Print (GlobalVars_RemoveAllOnLoad(False))
-    ```
-
-    The returnvalue is the previous state. 
-
 
 ### Informational
 
@@ -223,7 +132,7 @@ is loaded.
     var
         tp : integer
     
-        tp = GlobalVars_GetVariableType("PowersOfTwo")
+        tp = StateFullness_GetVariableType("PowersOfTwo")
         Print (tp)
         
         // 0 -> Does not exist
@@ -231,18 +140,134 @@ is loaded.
         // 2 -> Integer value
         // 3 -> Double value
         // 4 -> Boolean value
-
-        // 17 -> String array
-        // 18 -> Integer array
-        // 19 -> Double array
-        // 20 -> Boolean array
     ```
 
--   Array size
+## How to use in a Local Rackspace
+Here are the main script calls for a Local Rackspace. The main difference is that you need to pass a handle that represents the rackspace
+
+### Declare a variable
+
+-   Integer declaration
+    
+    ```gpscript
+    var
+        b : boolean
+        handle : string = StateFullness_GetRackHandle(GetRackspaceName())
+        
+        b = StateFullness_CreateInt(handle, "NumberOfSongparts")
+        Print(b)
+    ```
+
+-   String declaration
+    
+    ```gpscript
+    var
+        b : boolean
+        handle : string = StateFullness_GetRackHandle(GetRackspaceName())
+        
+        b = StateFullness_CreateString(handle, "Author")
+        Print(b)
+    ```
+    
+-   Declaration with an error
+    
+    ```gpscript
+    var
+        b : boolean
+        handle : string = StateFullness_GetRackHandle(GetRackspaceName())
+        
+        b = StateFullness_CreateString(handle, "global_1")
+        
+        b = StateFullness_CreateInt(handle, "global_1") // Will return false: global_1 already exists
+        Print(b)
+    ```
+   
+### Assigning a value
+
+-   Assigning an integer
+    
+    ```gpscript
+    var
+        b : boolean
+        handle : string = StateFullness_GetRackHandle(GetRackspaceName())
+        
+        b = StateFullness_SetInt(handle, "NumberOfSongparts", 100)
+        Print(b)
+    ```
+    
+-   Assigning a string
+    
+    ```gpscript
+    var
+        b : boolean
+        handle : string = StateFullness_GetRackHandle(GetRackspaceName())
+        author : string
+        
+        author = "Frank"
+        
+        b = StateFullness_SetString(handle, "Author", author, Length(author))
+        Print(b)
+    ```
+
+### Getting values
+
+-   Getting an integer
 
     ```gpscript
-    Print (GlobalVars_GetArraySize("PowersOfTwo"))
-    // -1 -> Not an array or variable does not exist
-    // >= 0 -> Size (although an array with a size of 0 cannot be created)
+    var
+        handle : string = StateFullness_GetRackHandle(GetRackspaceName())
+    Print (StateFullness_GetInt(handle, "NumberOfSongparts"))
     ```
+
+-   Getting a string
+
+    ```gpscript
+    var
+        handle : string = StateFullness_GetRackHandle(GetRackspaceName())
+
+    Print (StateFullness_GetString(handle, "Author"))
+    ```
+
+### Removing variables
+
+-   Removing specific variables
+
+    ```gpscript
+    var
+        handle : string = StateFullness_GetRackHandle(GetRackspaceName())
+
+    Print (StateFullness_DestroyVariable(handle, "Contributors"))
+    Print (StateFullness_DestroyVariable(handle, "NumberOfSongparts"))
+    ```
+
+-   Erase all
+
+    ```gpscript
+    var
+        handle : string = StateFullness_GetRackHandle(GetRackspaceName())
+
+    GlobalVars_RemoveAll(handle)
+    ```
+
+### Informational
+
+-   Variable type
+
+    ```gpscript
+    var
+        handle : string = StateFullness_GetRackHandle(GetRackspaceName())
+
+    var
+        tp : integer
+    
+        tp = StateFullness_GetVariableType(handle, "PowersOfTwo")
+        Print (tp)
+        
+        // 0 -> Does not exist
+        // 1 -> String value
+        // 2 -> Integer value
+        // 3 -> Double value
+        // 4 -> Boolean value
+    ```
+
     
