@@ -8,7 +8,7 @@ You might call this extension 'headless', because it has no menus or panels. It 
 **USE AT YOUR OWN RISK!**
 
 ## Disclaimer
-I'm in no way affilated to Gig Performer(r) or Deskew(r). Although you can contact me at their forum, Gig Performer ot Deskew are not able to provide any support for this extenstion or the accompanying vst3
+I'm in no way affiliated to Gig Performer(r) or Deskew(r). Although you can contact me at their forum, Gig Performer ot Deskew are not able to provide any support for this extenstion or the accompanying vst3
 
 ## How to build...
 These instructions are a copy of build instructions for the gp-extension-cpp example. The vst3 project won't build on macOS since I use in the vst3 some Windows dedicated calls. That renders this project rather useless on macOS.
