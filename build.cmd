@@ -4,7 +4,7 @@
 set PRESET=windows-native
 
 :: Build configuration - could be "Debug" as well
-set BUILD_CONFIGURATION=Release
+set BUILD_CONFIGURATION=Debug
 ::Release
 set BUILD_DIR=build\%BUILD_CONFIGURATION%
 

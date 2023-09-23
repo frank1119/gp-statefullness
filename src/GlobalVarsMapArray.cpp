@@ -3,7 +3,6 @@
 
 // fake array notation: ^[A-Za-z_][A-Za-z0-9_]{0,39}([(][0-9]{1,3}[)]){0,1}$  -> Var(1) == OK
 
-
 bool GlobalVarsMapArray::CreateString(const string handle, const string name)
 {
     if (std::regex_match(name.c_str(), reg))
@@ -167,46 +166,32 @@ bool GlobalVarsMapArray::DestroyVariable(const string handle, const string name)
 
 void GlobalVarsMapArray::RemoveAll()
 {
-    //lck.lock();
     for (auto i = begin(dicts); i != end(dicts); i++)
     {
         i->second->RemoveAll();
     }
-    //lck.unlock();
 }
 
-void GlobalVarsMapArray::RemoveAllOnLoad()
+void GlobalVarsMapArray::RemoveAllDictionaires()
 {
-    //lck.lock();
     for (auto i = begin(dicts); i != end(dicts); i++)
     {
-        try
-        {
-            i->second->RemoveAll();
-        }
-        catch (...)
-        {
-            cout << "Shit" << endl;
-        }
+        i->second->RemoveAll();
     }
     dicts.clear();
-    //lck.unlock();
 }
 
 void GlobalVarsMapArray::AddRackspaceByUuid(string handle)
 {
-    // lck.lock();
     if (dicts.count(handle) == 0)
     {
         GlobalVarsMap *gv = new GlobalVarsMap();
         dicts[handle] = gv;
     }
-    // lck.unlock();
 }
 
 void GlobalVarsMapArray::RemoveAllPerRack(string rackspaceUuid)
 {
-    //lck.lock();
     for (auto i = begin(dicts); i != end(dicts); i++)
     {
         string uuid = i->first;
@@ -216,12 +201,10 @@ void GlobalVarsMapArray::RemoveAllPerRack(string rackspaceUuid)
             i->second->RemoveAll();
         }
     }
-    //lck.unlock();
 }
 
 std::string GlobalVarsMapArray::getAllState(string rackspaceUuid)
 {
-    //lck.lock();
     for (auto i = begin(dicts); i != end(dicts); i++)
     {
         string uuid = i->first;
@@ -229,17 +212,14 @@ std::string GlobalVarsMapArray::getAllState(string rackspaceUuid)
         if (uuid.compare(rackspaceUuid) == 0)
         {
             string s = i->second->getAllState().dump();
-    //        lck.unlock();
             return s;
         }
     }
-    //lck.unlock();
     return "";
 }
 
 void GlobalVarsMapArray::setAllState(string rackspaceUuid, string state)
 {
-    //lck.lock();
     AddRackspaceByUuid(rackspaceUuid);
     for (auto i = begin(dicts); i != end(dicts); i++)
     {
@@ -248,12 +228,10 @@ void GlobalVarsMapArray::setAllState(string rackspaceUuid, string state)
         if (uuid.compare(rackspaceUuid) == 0)
             i->second->setAllState(state);
     }
-    //lck.unlock();
 }
 
 void GlobalVarsMapArray::dumpAllState(string rackspaceUuid, LibMain *lib, string rackspaceName)
 {
-    //lck.lock();
     for (auto i = begin(dicts); i != end(dicts); i++)
     {
         string uuid = i->first;
@@ -261,5 +239,4 @@ void GlobalVarsMapArray::dumpAllState(string rackspaceUuid, LibMain *lib, string
         if (uuid.compare(rackspaceUuid) == 0)
             i->second->dumpAllState(lib, rackspaceName);
     }
-    //lck.unlock();
 }

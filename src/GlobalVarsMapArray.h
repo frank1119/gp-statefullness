@@ -141,7 +141,7 @@ class GlobalVarsMapArray
 
     void AddRackspaceByUuid(string handle);
 
-    void RemoveAllOnLoad();
+    void RemoveAllDictionaires();
 
     /// <summary>
     /// Remove all variables from the map of a particular Rackspace.

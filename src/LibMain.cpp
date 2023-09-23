@@ -2,27 +2,13 @@
 
 #include "LibMain.h"
 #include "string"
-#include <malloc.h>
+//#include <malloc.h>
 
 using GPUtils = gigperformer::sdk::GPUtils;
 using namespace std;
 
-#pragma region Global definitions
-/// <summary>
-/// Object holding all global vars
-/// </summary>
-GlobalVarsMapArray gv;
-
-/// <summary>
-/// Cache for the uuid of the Global Rackspace
-/// </summary>
-string GRSUuid = "";
-
-/// <summary>
-/// Holds the constructed object.
-/// Provides a way to execute GP_Functions like consoleLog(..)
-/// </summary>
-LibMain *thisObj = nullptr;
+#pragma region Global and static definitions
+LibMain *LibMain::thisObj = nullptr;
 
 /// Ignore a given value
 /// details this is a dummy function to suppress compiler warnings about unused parameters
@@ -48,12 +34,7 @@ string pathToMe; // This needs to be initialized from the initialization
                  // section of the LibMain class so it can be used in the
                  // standalone functions directly below
 
-LibMain::~LibMain()
-{
-    thisObj = nullptr;
-}
 #pragma endregion
-
 
 #pragma region Helper functions
 
@@ -102,63 +83,71 @@ extern "C" void GetRackHandle(GPRuntimeEngine *vm)
     char rsn[100];
     GP_VM_PopString(vm, rsn, 100);
 
-    string res = getRackspaceUuidFromName(thisObj, rsn);
+    string res = getRackspaceUuidFromName(LibMain::thisObj, rsn);
     GP_VM_PushString(vm, res.c_str());
 }
 
 #pragma endregion
 
-
-
 #pragma region Plugin calls
 extern "C" void __declspec(dllexport) _stdcall ApplyState(std::string rackspaceUuid, std::string state)
 {
-    gv.setAllState(rackspaceUuid, state);
+    LibMain::thisObj->gv.setAllState(rackspaceUuid, state);
 }
 
 extern "C" void __declspec(dllexport) _stdcall getAllState(std::string rackspaceUuid, std::string &s)
 {
-    s.assign(gv.getAllState(rackspaceUuid));
+    s.assign(LibMain::thisObj->gv.getAllState(rackspaceUuid));
 }
 
-extern "C" void __declspec(dllexport) _stdcall getRSUuid(std::string &s)
+extern "C" void __declspec(dllexport) _stdcall getLocalRackspaceUuid(std::string &s)
 {
-    if (thisObj != nullptr)
+    if (LibMain::thisObj != nullptr)
     {
-        s.assign(thisObj->getRackspaceUuid(thisObj->getCurrentRackspaceIndex()));
+        s.assign(LibMain::thisObj->getRackspaceUuid(LibMain::thisObj->getCurrentRackspaceIndex()));
     }
     else
         s.assign("");
 }
 
-extern "C" void __declspec(dllexport) _stdcall getRSName(std::string uuid, std::string &s)
+extern "C" void __declspec(dllexport) _stdcall getRackspaceName(std::string uuid, std::string &s)
 {
-    if (thisObj != nullptr)
+    if (LibMain::thisObj != nullptr)
     {
-        s.assign(getRackspaceNameFromUuid(thisObj, uuid));
+        s.assign(getRackspaceNameFromUuid(LibMain::thisObj, uuid));
     }
     else
         s.assign("");
 }
 
-extern "C" void __declspec(dllexport) _stdcall getGRSUuid(std::string &s)
+extern "C" void __declspec(dllexport) _stdcall getGlobalRackspaceUuid(std::string &s)
 {
-    if (thisObj != nullptr)
-        s.assign(thisObj->getRackspaceUuid(-1));
+    if (LibMain::thisObj != nullptr)
+        s.assign(LibMain::thisObj->getRackspaceUuid(-1));
     else
         s.assign("");
 
-    GRSUuid = s;
+    LibMain::thisObj->GRSUuid.assign(s);
 }
 
 #pragma endregion
 
+/*
+LibMain::LibMain(LibraryHandle handle)
+    : GigPerformerAPI(handle)
+{
+    thisObj = this;
+}
+*/
+
 #pragma region Events and housekeeping
+LibMain::~LibMain()
+{
+    thisObj = nullptr;
+}
+
 void LibMain::OnStatusChanged(GPStatusType status)
 {
-    if (status == GPStatusType::GPStatus_GigStartedLoading)
-        gv.RemoveAllOnLoad();
-
     string s;
     switch (status)
     {
@@ -172,13 +161,14 @@ void LibMain::OnStatusChanged(GPStatusType status)
         s = "GPStatus_GigFinishedLoading";
         break;
     case GPStatusType::GPStatus_GigStartedLoading:
+        gv.RemoveAllDictionaires();
         s = "GPStatus_GigStartedLoading";
         break;
     case GPStatusType::GPStatus_MetronomeStateChanged:
         s = "GPStatus_MetronomeStateChanged";
         break;
     case GPStatusType::GPStatus_RackspaceListModified:
-        gv.AddRackspaceByUuid(getRackspaceUuid(getCurrentRackspaceIndex()));
+        //gv.AddRackspaceByUuid(getRackspaceUuid(getCurrentRackspaceIndex()));
         s = "GPStatus_RackspaceListModified";
         break;
     case GPStatusType::GPStatus_SaveRequest:
@@ -194,28 +184,33 @@ void LibMain::OnStatusChanged(GPStatusType status)
         s = "GPStatus_VariationListModified";
         break;
     }
+    //std::cout << "after  Status ---- " << s << std::endl;
 }
 
 void LibMain::OnRackspaceActivated()
 {
+    //std::cout << "before OnRackSpaceActivated ---- " << std::endl;
+
     gv.AddRackspaceByUuid(getRackspaceUuid(getCurrentRackspaceIndex()));
+    //std::cout << "after  OnRackSpaceActivated ---- " << std::endl;
 }
 
 void LibMain::Initialization()
 {
     // Dirty way to make some instance methods, like consoleLog() available for
     // library-defined script functions
-    thisObj = this;
     // Do any initialization that you need
 
     // .... your code here
+    GRSUuid = thisObj->getRackspaceUuid(-1);
+    // pathToMe = getPathToMe();
+    // consoleLog("path to library " + pathToMe);
 
     // Finally, register all the methods that you are going to actually use,
     // i.e, the ones you declared above as override
     registerCallback("OnStatusChanged");
     registerCallback("OnRackspaceActivated");
-    // pathToMe = getPathToMe();
-    // consoleLog("path to library " + pathToMe);
+    
 }
 
 string LibMain::GetProductDescription()
@@ -237,7 +232,7 @@ extern "C" void CreateString(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    bool res = gv.CreateString(buffer2, buffer);
+    bool res = LibMain::thisObj->gv.CreateString(buffer2, buffer);
     GP_VM_PushBoolean(vm, res);
 }
 
@@ -248,7 +243,7 @@ extern "C" void CreateInt(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    bool res = gv.CreateInt(buffer2, buffer);
+    bool res = LibMain::thisObj->gv.CreateInt(buffer2, buffer);
 
     GP_VM_PushBoolean(vm, res);
 }
@@ -261,7 +256,7 @@ extern "C" void CreateDouble(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    bool res = gv.CreateDouble(buffer2, buffer);
+    bool res = LibMain::thisObj->gv.CreateDouble(buffer2, buffer);
     GP_VM_PushBoolean(vm, res);
 }
 
@@ -273,7 +268,7 @@ extern "C" void CreateBool(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    bool res = gv.CreateBool(buffer2, buffer);
+    bool res = LibMain::thisObj->gv.CreateBool(buffer2, buffer);
     GP_VM_PushBoolean(vm, res);
 }
 #pragma endregion
@@ -287,7 +282,7 @@ extern "C" void DestroyVariable(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    bool res = gv.DestroyVariable(buffer2, name);
+    bool res = LibMain::thisObj->gv.DestroyVariable(buffer2, name);
 
     GP_VM_PushBoolean(vm, res);
 }
@@ -296,7 +291,7 @@ extern "C" void RemoveAllFromRack(GPRuntimeEngine *vm)
 {
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
-    gv.RemoveAllPerRack(buffer2);
+    LibMain::thisObj->gv.RemoveAllPerRack(buffer2);
 }
 #pragma endregion
 
@@ -318,7 +313,8 @@ extern "C" void SetString(GPRuntimeEngine *vm)
     }
     else
     {
-        char *value = (char *)malloc(len + 1);
+        char *value = new char[len + 1];
+        //(char *)malloc(len + 1);
 
         GP_VM_PopString(vm, value, len + 1);
         GP_VM_PopString(vm, name, 100);
@@ -326,10 +322,10 @@ extern "C" void SetString(GPRuntimeEngine *vm)
 
         bool res = false;
         if (value != nullptr)
-            res = gv.SetString(handle, name, string(value, len));
+            res = LibMain::thisObj->gv.SetString(handle, name, string(value, len));
 
         GP_VM_PushBoolean(vm, res);
-        free(value);
+        delete value;
     }
 }
 
@@ -341,7 +337,7 @@ extern "C" void SetInt(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    bool res = gv.SetInt(buffer2, name, value);
+    bool res = LibMain::thisObj->gv.SetInt(buffer2, name, value);
 
     GP_VM_PushBoolean(vm, res);
 }
@@ -354,7 +350,7 @@ extern "C" void SetDouble(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    bool res = gv.SetDouble(buffer2, name, value);
+    bool res = LibMain::thisObj->gv.SetDouble(buffer2, name, value);
 
     GP_VM_PushBoolean(vm, res);
 }
@@ -367,7 +363,7 @@ extern "C" void SetBool(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    bool res = gv.SetBool(buffer2, name, value);
+    bool res = LibMain::thisObj->gv.SetBool(buffer2, name, value);
 
     GP_VM_PushBoolean(vm, res);
 }
@@ -381,7 +377,7 @@ extern "C" void GetStringValue(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    string res = gv.GetStringValue(buffer2, name);
+    string res = LibMain::thisObj->gv.GetStringValue(buffer2, name);
     GP_VM_PushString(vm, res.c_str());
 }
 
@@ -392,7 +388,7 @@ extern "C" void GetIntValue(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    int value = gv.GetIntValue(buffer2, name);
+    int value = LibMain::thisObj->gv.GetIntValue(buffer2, name);
 
     GP_VM_PushInteger(vm, value);
 }
@@ -404,7 +400,7 @@ extern "C" void GetDoubleValue(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    double value = gv.GetDoubleValue(buffer2, name);
+    double value = LibMain::thisObj->gv.GetDoubleValue(buffer2, name);
 
     GP_VM_PushDouble(vm, value);
 }
@@ -416,7 +412,7 @@ extern "C" void GetBoolValue(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    bool value = gv.GetDoubleValue(buffer2, name);
+    bool value = LibMain::thisObj->gv.GetDoubleValue(buffer2, name);
 
     GP_VM_PushBoolean(vm, value);
 }
@@ -426,11 +422,10 @@ extern "C" void dumpAllVars(GPRuntimeEngine *vm)
     char uuid[100];
     GP_VM_PopString(vm, uuid, 100);
 
-    string rsn = getRackspaceNameFromUuid(thisObj, uuid);
+    string rsn = getRackspaceNameFromUuid(LibMain::thisObj, uuid);
 
-    gv.dumpAllState(uuid, thisObj, rsn);
+    LibMain::thisObj->gv.dumpAllState(uuid, LibMain::thisObj, rsn);
 }
-
 
 #pragma endregion
 #pragma endregion
@@ -442,7 +437,7 @@ extern "C" void CreateStringG(GPRuntimeEngine *vm)
     char buffer[100];
     GP_VM_PopString(vm, buffer, 100);
 
-    bool res = gv.CreateString(GRSUuid, buffer);
+    bool res = LibMain::thisObj->gv.CreateString(LibMain::thisObj->GRSUuid, buffer);
     GP_VM_PushBoolean(vm, res);
 }
 
@@ -451,7 +446,7 @@ extern "C" void CreateIntG(GPRuntimeEngine *vm)
     char buffer[100];
     GP_VM_PopString(vm, buffer, 100);
 
-    bool res = gv.CreateInt(GRSUuid, buffer);
+    bool res = LibMain::thisObj->gv.CreateInt(LibMain::thisObj->GRSUuid, buffer);
 
     GP_VM_PushBoolean(vm, res);
 }
@@ -461,7 +456,7 @@ extern "C" void CreateDoubleG(GPRuntimeEngine *vm)
     char buffer[100];
     GP_VM_PopString(vm, buffer, 100);
 
-    bool res = gv.CreateDouble(GRSUuid, buffer);
+    bool res = LibMain::thisObj->gv.CreateDouble(LibMain::thisObj->GRSUuid, buffer);
     GP_VM_PushBoolean(vm, res);
 }
 
@@ -470,7 +465,7 @@ extern "C" void CreateBoolG(GPRuntimeEngine *vm)
     char buffer[100];
     GP_VM_PopString(vm, buffer, 100);
 
-    bool res = gv.CreateBool(GRSUuid, buffer);
+    bool res = LibMain::thisObj->gv.CreateBool(LibMain::thisObj->GRSUuid, buffer);
     GP_VM_PushBoolean(vm, res);
 }
 #pragma endregion
@@ -481,14 +476,14 @@ extern "C" void DestroyVariableG(GPRuntimeEngine *vm)
     char name[100];
     GP_VM_PopString(vm, name, 100);
 
-    bool res = gv.DestroyVariable(GRSUuid, name);
+    bool res = LibMain::thisObj->gv.DestroyVariable(LibMain::thisObj->GRSUuid, name);
 
     GP_VM_PushBoolean(vm, res);
 }
 
 extern "C" void RemoveAllFromRackG(GPRuntimeEngine *vm)
 {
-    gv.RemoveAllPerRack(GRSUuid);
+    LibMain::thisObj->gv.RemoveAllPerRack(LibMain::thisObj->GRSUuid);
 }
 
 #pragma endregion
@@ -498,7 +493,7 @@ extern "C" void SetStringG(GPRuntimeEngine *vm)
 {
     int len = GP_VM_PopInteger(vm);
     char name[100];
-    char handle[100];
+    //char handle[100];
     if (len < 0)
     {
         // Just pop and push the stack
@@ -510,17 +505,19 @@ extern "C" void SetStringG(GPRuntimeEngine *vm)
     }
     else
     {
-        char *value = (char *)malloc(len + 1);
+        char *value = new char[len + 1];
+        //(char *)malloc(len + 1);
 
         GP_VM_PopString(vm, value, len + 1);
         GP_VM_PopString(vm, name, 100);
 
         bool res = false;
         if (value != nullptr)
-            res = gv.SetString(GRSUuid, name, string(value, len));
+            res = LibMain::thisObj->gv.SetString(LibMain::thisObj->GRSUuid, name, string(value, len));
 
         GP_VM_PushBoolean(vm, res);
-        free(value);
+        delete value;
+        //free(value);
     }
 }
 
@@ -530,7 +527,7 @@ extern "C" void SetIntG(GPRuntimeEngine *vm)
     int value = GP_VM_PopInteger(vm);
     GP_VM_PopString(vm, name, 100);
 
-    bool res = gv.SetInt(GRSUuid, name, value);
+    bool res = LibMain::thisObj->gv.SetInt(LibMain::thisObj->GRSUuid, name, value);
 
     GP_VM_PushBoolean(vm, res);
 }
@@ -541,7 +538,7 @@ extern "C" void SetDoubleG(GPRuntimeEngine *vm)
     double value = GP_VM_PopDouble(vm);
     GP_VM_PopString(vm, name, 100);
 
-    bool res = gv.SetDouble(GRSUuid, name, value);
+    bool res = LibMain::thisObj->gv.SetDouble(LibMain::thisObj->GRSUuid, name, value);
 
     GP_VM_PushBoolean(vm, res);
 }
@@ -552,7 +549,7 @@ extern "C" void SetBoolG(GPRuntimeEngine *vm)
     bool value = GP_VM_PopBoolean(vm);
     GP_VM_PopString(vm, name, 100);
 
-    bool res = gv.SetBool(GRSUuid, name, value);
+    bool res = LibMain::thisObj->gv.SetBool(LibMain::thisObj->GRSUuid, name, value);
 
     GP_VM_PushBoolean(vm, res);
 }
@@ -564,7 +561,7 @@ extern "C" void GetStringValueG(GPRuntimeEngine *vm)
     char name[100];
     GP_VM_PopString(vm, name, 100);
 
-    string res = gv.GetStringValue(GRSUuid, name);
+    string res = LibMain::thisObj->gv.GetStringValue(LibMain::thisObj->GRSUuid, name);
     GP_VM_PushString(vm, res.c_str());
 }
 
@@ -573,7 +570,7 @@ extern "C" void GetIntValueG(GPRuntimeEngine *vm)
     char name[100];
     GP_VM_PopString(vm, name, 100);
 
-    int value = gv.GetIntValue(GRSUuid, name);
+    int value = LibMain::thisObj->gv.GetIntValue(LibMain::thisObj->GRSUuid, name);
 
     GP_VM_PushInteger(vm, value);
 }
@@ -583,7 +580,7 @@ extern "C" void GetDoubleValueG(GPRuntimeEngine *vm)
     char name[100];
     GP_VM_PopString(vm, name, 100);
 
-    double value = gv.GetDoubleValue(GRSUuid, name);
+    double value = LibMain::thisObj->gv.GetDoubleValue(LibMain::thisObj->GRSUuid, name);
 
     GP_VM_PushDouble(vm, value);
 }
@@ -593,14 +590,14 @@ extern "C" void GetBoolValueG(GPRuntimeEngine *vm)
     char name[100];
     GP_VM_PopString(vm, name, 100);
 
-    bool value = gv.GetDoubleValue(GRSUuid, name);
+    bool value = LibMain::thisObj->gv.GetDoubleValue(LibMain::thisObj->GRSUuid, name);
 
     GP_VM_PushBoolean(vm, value);
 }
 
 extern "C" void dumpAllVarsG(GPRuntimeEngine *vm)
 {
-    gv.dumpAllState(GRSUuid, thisObj, "GLOBAL RACKSPACE");
+    LibMain::thisObj->gv.dumpAllState(LibMain::thisObj->GRSUuid, LibMain::thisObj, "GLOBAL RACKSPACE");
 }
 
 #pragma endregion
@@ -612,11 +609,10 @@ extern "C" void GetVariableTypeG(GPRuntimeEngine *vm)
     char name[100];
     GP_VM_PopString(vm, name, 100);
 
-    int res = gv.GetVariableType(GRSUuid, name);
+    int res = LibMain::thisObj->gv.GetVariableType(LibMain::thisObj->GRSUuid, name);
 
     GP_VM_PushInteger(vm, res);
 }
-
 
 #pragma endregion
 #pragma endregion
@@ -629,14 +625,14 @@ extern "C" void GetVariableType(GPRuntimeEngine *vm)
     char buffer2[100];
     GP_VM_PopString(vm, buffer2, 100);
 
-    int res = gv.GetVariableType(buffer2, name);
+    int res = LibMain::thisObj->gv.GetVariableType(buffer2, name);
 
     GP_VM_PushInteger(vm, res);
 }
 
 extern "C" void RemoveAll(GPRuntimeEngine *vm)
 {
-    gv.RemoveAll();
+    LibMain::thisObj->gv.RemoveAll();
 }
 
 #pragma endregion
